@@ -1,61 +1,44 @@
 from django.shortcuts import render, redirect
+from django.urls import reverse_lazy
+from django.views.generic import CreateView, DetailView, UpdateView
 
 from Petstagram.common.forms import CommentBaseForm
-from Petstagram.common.models import Like
 from Petstagram.photos.forms import PhotoAddForm, PhotoEditForm
 from Petstagram.photos.models import Photo
 
 
 # Create your views here.
 
+class AddPhotoView(CreateView):
+    model = Photo
+    template_name = 'photos/photo-add-page.html'
+    form_class = PhotoAddForm
+    success_url = reverse_lazy('home')
 
-def photos_add(request):
-    form = PhotoAddForm(request.POST or None, request.FILES or None)
-
-    if request.method == 'POST':
-        if form.is_valid():
-            form.save()
-            return redirect('home')
-
-    context = {
-        'form': form
-    }
-
-    return render(request, 'photos/photo-add-page.html', context)
+    def form_valid(self, form):
+        return super().form_valid(form)
 
 
-def photos_details(request, pk):
+class DetailsPhotoView(DetailView):
+    model = Photo
+    template_name = 'photos/photo-details-page.html'
 
-    photo = Photo.objects.get(pk=pk)
-    likes = photo.like_set.all()
-    comments = photo.comment_set.all()
-    comment_form = CommentBaseForm()
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['comment_form'] = CommentBaseForm
+        context['likes'] = self.object.like_set.all()
+        context['comments'] = self.object.comment_set.all()
 
-    context = {
-        'photo': photo,
-        'likes': likes,
-        'comments': comments,
-        'comment_form': comment_form,
-    }
-
-    return render(request, 'photos/photo-details-page.html', context)
+        return context
 
 
-def photos_edit(request, pk):
-    photo = Photo.objects.get(pk=pk)
-    form = PhotoEditForm(request.POST or None, instance=photo)
+class EditPhotoView(UpdateView):
+    model = Photo
+    form_class = PhotoEditForm
+    template_name = 'photos/photo-edit-page.html'
 
-    if request.method == 'POST':
-        if form.is_valid():
-            form.save()
-            return redirect('photo-details', pk)
-
-    context = {
-        'photo': photo,
-        'form': form,
-    }
-
-    return render(request, 'photos/photo-edit-page.html', context)
+    def get_success_url(self):
+        return redirect('photo-details', kwargs={'pk': self.object.pk})
 
 
 def photos_delete(request, pk):
