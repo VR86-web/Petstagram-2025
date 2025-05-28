@@ -1,3 +1,4 @@
+from django.contrib.auth.decorators import login_required
 from django.views.generic import ListView
 from pyperclip import copy
 
@@ -14,12 +15,17 @@ class HomePageView(ListView):
     model = Photo
     template_name = 'common/home-page.html'
     context_object_name = 'all_photos'
-    paginate_by = 1
+    paginate_by = 5
 
     def get_context_data(self, *, object_list=None, **kwargs):
         context = super().get_context_data(**kwargs)
         context['comment_form'] = CommentBaseForm
         context['search_form'] = SearchForm(self.request.GET)
+
+        user = self.request.user
+
+        for photo in context['all_photos']:
+            photo.has_liked = photo.like_set.filter(user=user).exists() if user.is_authenticated else False
 
         return context
 
@@ -35,14 +41,15 @@ class HomePageView(ListView):
         return queryset
 
 
+@login_required
 def like_functionality(request, photo_id):
-    liked_objects = Like.objects.filter(to_photo_id=photo_id).first()
+    liked_objects = Like.objects.filter(to_photo_id=photo_id, user=request.user).first()
 
     if liked_objects:
         liked_objects.delete()
 
     else:
-        like = Like(to_photo_id=photo_id)
+        like = Like(to_photo_id=photo_id, user=request.user)
         like.save()
 
     return redirect(request.META['HTTP_REFERER'] + f'#{photo_id}')
@@ -54,6 +61,7 @@ def copy_link_to_clipboard(request, photo_id):
     return redirect(request.META['HTTP_REFERER'] + f'#{photo_id}')
 
 
+@login_required
 def comment_functionality(request, photo_id):
     if request.POST:
         photo = Photo.objects.get(pk=photo_id)
@@ -62,6 +70,7 @@ def comment_functionality(request, photo_id):
         if comment_form.is_valid():
             comment = comment_form.save(commit=False)
             comment.to_photo = photo
+            comment.user = request.user
             comment.save()
 
     return redirect(request.META['HTTP_REFERER'] + f'#{photo_id}')

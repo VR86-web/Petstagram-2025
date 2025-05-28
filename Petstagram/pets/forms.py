@@ -6,7 +6,7 @@ from Petstagram.pets.models import Pet
 class PetBaseForm(forms.ModelForm):
     class Meta:
         model = Pet
-        exclude = ['slug',]
+        exclude = ['slug', 'user',]
 
         widgets = {
             'name': forms.TextInput(attrs={'placeholder': 'Pet name'}),
